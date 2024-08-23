@@ -1,0 +1,64 @@
+services:
+  express-api:
+    image: node:latest
+    container_name: express
+    working_dir: /app
+    volumes:
+      - ./app:/app
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && node index.js"
+    depends_on:
+      - kafka
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    # image: apache/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://localhost:9093,OUTSIDE://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "test:1:2"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+    restart: always
+
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: zookeeper
+    tmpfs: "/datalog"
+    ports:
+      - "2181:2181"
+
+  php-service1:
+    build: ./php
+    container_name: php_1
+    working_dir: /app
+    volumes:
+      - ./php:/app
+    ports:
+      - "3002:80"
+    command: php /app/index.php
+    depends_on:
+      - kafka
+
+  php-service2:
+    build: ./php
+    container_name: php_2
+    working_dir: /app
+    volumes:
+      - ./php:/app
+    ports:
+      - "3003:80"
+    command: php /app/index.php
+    depends_on:
+      - kafka
